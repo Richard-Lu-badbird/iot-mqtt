@@ -301,10 +301,13 @@
                     <span :class="cam.online ? 'badge-on' : 'badge-off'" x-text="cam.online ? '在线' : '离线'" style="font-size:10px;"></span>
                 </div>
                 <div class="flex gap-2">
-                    <button @click="camCapture()" :disabled="cam.loading" class="btn-primary text-xs py-1.5 px-3">
+                    <button @click="toggleLive()" :class="cam.live ? 'btn-success' : 'btn-ghost'" class="text-xs py-1.5 px-3">
+                        <span x-text="cam.live ? '🔴 实时' : '▶ 实时'"></span>
+                    </button>
+                    <button @click="camCapture()" :disabled="cam.loading || cam.live" class="btn-primary text-xs py-1.5 px-3">
                         <span x-text="cam.loading ? '执行中...' : '📷 拍照'"></span>
                     </button>
-                    <button @click="camDetect()" :disabled="cam.loading" class="btn-ghost text-xs py-1.5 px-3">
+                    <button @click="camDetect()" :disabled="cam.loading || cam.live" class="btn-ghost text-xs py-1.5 px-3">
                         🔍 拍照+检测
                     </button>
                 </div>
@@ -324,7 +327,10 @@
                             暂无截图，点击"拍照"
                         </div>
                     </template>
-                    <div x-show="cam.snap_ts" style="color:var(--text-dim);font-size:10px;margin-top:4px;" x-text="cam.snap_ts"></div>
+                    <div x-show="cam.snap_ts" style="color:var(--text-dim);font-size:10px;margin-top:4px;">
+                        <span x-text="cam.snap_ts"></span>
+                        <span x-show="cam.live" style="color:#10b981;font-size:10px;margin-left:6px;">🔴 实时刷新中...</span>
+                    </div>
                 </div>
                 <div>
                     <div class="label-muted mb-1.5">检测结果</div>
@@ -404,7 +410,7 @@ function dash() {
 
         sen: {co2:'—', temp:'—', hum:'—', fmd:'—', ts:'', loading:false, error:''},
 
-        cam: {loading:false, online:false, device_serial:'BG9434316', snapshot_url:null, detect_url:null, person_count:null, total_detections:null, snap_ts:'', detect_error:'', error:''},
+        cam: {loading:false, online:false, device_serial:'BG9434316', snapshot_url:null, detect_url:null, person_count:null, total_detections:null, snap_ts:'', detect_error:'', error:'', live:false, _liveTimer:null, _capturing:false},
 
         s: {broker:false, ha_bridge:false, adb_bridge:false, sensor_count:0},
         theme: localStorage.getItem('iot-theme') || 'dark',
@@ -569,20 +575,56 @@ function dash() {
             } catch(e) {}
         },
 
+        toggleLive() {
+            if (this.cam.live) {
+                // Stop live mode
+                this.cam.live = false;
+                if (this.cam._liveTimer) {
+                    clearTimeout(this.cam._liveTimer);
+                    this.cam._liveTimer = null;
+                }
+                this.cam._capturing = false;
+            } else {
+                // Start live mode — capture immediately, then every 3.5s
+                this.cam.live = true;
+                this.cam._capturing = false;
+                this._liveCaptureLoop();
+            }
+        },
+
+        async _liveCaptureLoop() {
+            if (!this.cam.live) return;
+            if (this.cam._capturing) {
+                // Still capturing, wait and retry
+                this.cam._liveTimer = setTimeout(() => this._liveCaptureLoop(), 1000);
+                return;
+            }
+            await this.camCapture();
+            // Schedule next capture (delay based on how long capture took)
+            this.cam._liveTimer = setTimeout(() => this._liveCaptureLoop(), 3500);
+        },
+
         async camCapture() {
-            this.cam.loading = true; this.cam.error = ''; this.cam.detect_error = '';
+            this.cam._capturing = true;
+            this.cam.loading = true;
+            this.cam.error = '';
+            this.cam.detect_error = '';
             try {
                 const r = await fetch('/api/camera/capture');
                 const d = await r.json();
                 if (d.filename) {
-                    this.cam.snapshot_url = '/ys/' + d.filename;
-                    this.cam.snap_ts = new Date().toLocaleString() + ' (刚刚)';
+                    // Bypass browser cache by appending timestamp
+                    this.cam.snapshot_url = '/ys/' + d.filename + '?t=' + Date.now();
+                    this.cam.snap_ts = new Date().toLocaleString() + (this.cam.live ? '' : ' (刚刚)');
                 }
-                this.cam.person_count = null;
-                this.cam.total_detections = null;
-                this.cam.detect_url = null;
+                if (!this.cam.live) {
+                    this.cam.person_count = null;
+                    this.cam.total_detections = null;
+                    this.cam.detect_url = null;
+                }
             } catch(e) { this.cam.error = 'Error: '+e; }
             this.cam.loading = false;
+            this.cam._capturing = false;
         },
 
         async camDetect() {
