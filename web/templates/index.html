@@ -729,11 +729,11 @@ function dash() {
                 let liveUrl = cfg.ezopen_url;
                 if (this.camVerifyCode.trim()) {
                     liveUrl += '?verify=' + this.camVerifyCode.trim();
-                    // Also try with password param for HLS
                 }
-                if (typeof EZUIKitPlayer !== 'undefined') {
+                const PlayerClass = window.EZUIKit?.EZUIKitPlayer;
+                if (typeof PlayerClass === 'function') {
                     // Use EZUIKit player
-                    this.cam._player = new EZUIKitPlayer({
+                    this.cam._player = new PlayerClass({
                         id: 'live-video-container',
                         accessToken: cfg.accessToken,
                         url: liveUrl,
