@@ -377,17 +377,22 @@
             <!-- Live tab -->
             <template x-if="camTab === 'live'">
             <div>
-                <div id="live-video-container" style="width:100%;height:360px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"></div>
+                <div id="live-video-container" style="width:100%;height:360px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#000;"></div>
                 <div class="mt-2 flex items-center gap-2">
                     <span x-show="cam.liveReady" style="color:#10b981;font-size:11px;">● 直播中</span>
                     <span x-show="!cam.liveReady && !cam.liveLoading" style="color:var(--text-dim);font-size:11px;">点击「播放」加载直播</span>
                     <span x-show="cam.liveLoading" style="color:#f59e0b;font-size:11px;">⏳ 加载中...</span>
-                    <span x-show="cam.liveError" style="color:#ef4444;font-size:11px;" x-text="cam.liveError"></span>
+                    <span x-show="cam.liveError" style="color:#ef4444;font-size:11px;max-width:300px;overflow:hidden;text-overflow:ellipsis;" x-text="cam.liveError"></span>
                     <button @click="loadLiveStream()" x-show="!cam.liveReady" class="btn-ghost text-xs py-0.5 px-2 ml-auto">▶ 播放</button>
                     <button @click="stopLiveStream()" x-show="cam.liveReady" class="btn-ghost text-xs py-0.5 px-2 ml-auto">■ 停止</button>
                 </div>
+                <div class="mt-2 flex items-center gap-2" x-show="!cam.liveReady">
+                    <span style="color:var(--text-dim);font-size:11px;">设备验证码：</span>
+                    <input type="text" x-model="camVerifyCode" placeholder="萤石App里设置的密码" maxlength="10"
+                           class="input" style="width:160px;padding:4px 8px;font-size:11px;">
+                </div>
                 <div style="color:var(--text-dim);font-size:10px;margin-top:4px;">
-                    直播地址有效至 2026-06-18，到期需在 open.ys7.com 重新生成
+                    ℹ️ 摄像头已加密 (isEncrypt=1)，需验证码才能播放
                 </div>
             </div>
             </template>
@@ -449,6 +454,7 @@ function dash() {
         cam: {loading:false, online:false, device_serial:'BG9434316', snapshot_url:null, detect_url:null, person_count:null, total_detections:null, snap_ts:'', detect_error:'', error:'', live:false, _liveTimer:null, _capturing:false, liveReady:false, liveLoading:false, liveError:'', _player:null},
         camTab: 'snap',
         _liveStreamConfig: null,
+        camVerifyCode: '',
 
         s: {broker:false, ha_bridge:false, adb_bridge:false, sensor_count:0},
         theme: localStorage.getItem('iot-theme') || 'dark',
@@ -720,12 +726,17 @@ function dash() {
                 container.innerHTML = '';
 
                 // Check if EZUIKit is loaded
+                let liveUrl = cfg.ezopen_url;
+                if (this.camVerifyCode.trim()) {
+                    liveUrl += '?verify=' + this.camVerifyCode.trim();
+                    // Also try with password param for HLS
+                }
                 if (typeof EZUIKitPlayer !== 'undefined') {
                     // Use EZUIKit player
                     this.cam._player = new EZUIKitPlayer({
                         id: 'live-video-container',
                         accessToken: cfg.accessToken,
-                        url: cfg.ezopen_url,
+                        url: liveUrl,
                         width: '100%',
                         height: 360,
                         audio: 0,
