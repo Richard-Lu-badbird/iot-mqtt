@@ -11,6 +11,7 @@
     }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script src="https://unpkg.com/ezuikit-js@9.0.6/ezuikit.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         :root {
@@ -111,6 +112,9 @@
         .theme-btn:hover { background: var(--btn-ghost-hover-bg); color: var(--btn-ghost-hover-text); }
         .text-primary { color: var(--text-primary); }
         .text-dim { color: var(--text-dim); }
+        .tab-active { background: var(--btn-ghost-bg); border: 1px solid var(--btn-ghost-border); color: var(--text-primary); font-weight:500; }
+        .tab-inactive { background: transparent; border: 1px solid transparent; color: var(--text-muted); cursor:pointer; }
+        .tab-inactive:hover { color: var(--text-secondary); background: var(--btn-ghost-bg); }
     </style>
 </head>
 <body x-data="dash()" x-init="init()" :class="theme === 'light' ? 'light' : ''">
@@ -313,7 +317,15 @@
                 </div>
             </div>
 
-            <!-- Image display area -->
+            <!-- Tab selector -->
+            <div class="flex gap-2 mb-3" style="border-bottom:1px solid var(--border-subtle);padding-bottom:8px;">
+                <button @click="camTab='snap'" :class="camTab==='snap'?'tab-active':'tab-inactive'" class="text-xs py-1 px-3 rounded">📷 抓拍</button>
+                <button @click="switchLiveTab()" :class="camTab==='live'?'tab-active':'tab-inactive'" class="text-xs py-1 px-3 rounded">🔴 直播</button>
+                <button @click="camTab='detect'" :class="camTab==='detect'?'tab-active':'tab-inactive'" class="text-xs py-1 px-3 rounded">🔍 检测</button>
+            </div>
+
+            <!-- Snap tab -->
+            <template x-if="camTab === 'snap'">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
                     <div class="label-muted mb-1.5">最新抓拍</div>
@@ -349,8 +361,6 @@
                             暂无检测结果
                         </div>
                     </template>
-
-                    <!-- Detection summary -->
                     <div x-show="cam.person_count !== null" class="mt-2 flex gap-3">
                         <span class="text-xs" style="color:var(--text-muted);">
                             👤 检测到 <strong style="color:var(--text-primary);" x-text="cam.person_count"></strong> 人
@@ -362,6 +372,32 @@
                     <div x-show="cam.detect_error" class="mt-2 text-xs" style="color:#ef4444;" x-text="cam.detect_error"></div>
                 </div>
             </div>
+            </template>
+
+            <!-- Live tab -->
+            <template x-if="camTab === 'live'">
+            <div>
+                <div id="live-video-container" style="width:100%;height:360px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"></div>
+                <div class="mt-2 flex items-center gap-2">
+                    <span x-show="cam.liveReady" style="color:#10b981;font-size:11px;">● 直播中</span>
+                    <span x-show="!cam.liveReady && !cam.liveLoading" style="color:var(--text-dim);font-size:11px;">点击「播放」加载直播</span>
+                    <span x-show="cam.liveLoading" style="color:#f59e0b;font-size:11px;">⏳ 加载中...</span>
+                    <span x-show="cam.liveError" style="color:#ef4444;font-size:11px;" x-text="cam.liveError"></span>
+                    <button @click="loadLiveStream()" x-show="!cam.liveReady" class="btn-ghost text-xs py-0.5 px-2 ml-auto">▶ 播放</button>
+                    <button @click="stopLiveStream()" x-show="cam.liveReady" class="btn-ghost text-xs py-0.5 px-2 ml-auto">■ 停止</button>
+                </div>
+                <div style="color:var(--text-dim);font-size:10px;margin-top:4px;">
+                    直播地址有效至 2026-06-18，到期需在 open.ys7.com 重新生成
+                </div>
+            </div>
+            </template>
+
+            <!-- Detect tab -->
+            <template x-if="camTab === 'detect'">
+            <div class="text-center py-8" style="color:var(--text-dim);font-size:13px;">
+                切换到「抓拍」选项卡，点击「拍照+检测」按钮
+            </div>
+            </template>
 
             <div x-show="cam.loading" class="mt-3" style="color:#3b82f6;font-size:12px;" class="animate-pulse">⏳ 萤石API执行中...</div>
             <div x-show="cam.error" class="mt-3 text-xs" style="color:#ef4444;" x-text="cam.error"></div>
@@ -410,7 +446,9 @@ function dash() {
 
         sen: {co2:'—', temp:'—', hum:'—', fmd:'—', ts:'', loading:false, error:''},
 
-        cam: {loading:false, online:false, device_serial:'BG9434316', snapshot_url:null, detect_url:null, person_count:null, total_detections:null, snap_ts:'', detect_error:'', error:'', live:false, _liveTimer:null, _capturing:false},
+        cam: {loading:false, online:false, device_serial:'BG9434316', snapshot_url:null, detect_url:null, person_count:null, total_detections:null, snap_ts:'', detect_error:'', error:'', live:false, _liveTimer:null, _capturing:false, liveReady:false, liveLoading:false, liveError:'', _player:null},
+        camTab: 'snap',
+        _liveStreamConfig: null,
 
         s: {broker:false, ha_bridge:false, adb_bridge:false, sensor_count:0},
         theme: localStorage.getItem('iot-theme') || 'dark',
@@ -650,6 +688,89 @@ function dash() {
                 }
             } catch(e) { this.cam.error = 'Error: '+e; }
             this.cam.loading = false;
+        },
+
+        // ── Live Stream ──
+        async switchLiveTab() {
+            this.camTab = 'live';
+            // Auto-load if stream config ready
+            if (this._liveStreamConfig) {
+                this.loadLiveStream();
+            } else {
+                await this.loadLiveStream();
+            }
+        },
+
+        async loadLiveStream() {
+            if (this.cam.liveReady) return;
+            if (this.cam.liveLoading) return;
+            this.cam.liveLoading = true;
+            this.cam.liveError = '';
+
+            try {
+                // Fetch stream config
+                const r = await fetch('/api/camera/stream');
+                const cfg = await r.json();
+                this._liveStreamConfig = cfg;
+
+                const container = document.getElementById('live-video-container');
+                if (!container) { this.cam.liveError = 'Container not found'; return; }
+
+                // Clear container
+                container.innerHTML = '';
+
+                // Check if EZUIKit is loaded
+                if (typeof EZUIKitPlayer !== 'undefined') {
+                    // Use EZUIKit player
+                    this.cam._player = new EZUIKitPlayer({
+                        id: 'live-video-container',
+                        accessToken: cfg.accessToken,
+                        url: cfg.ezopen_url,
+                        width: '100%',
+                        height: 360,
+                        audio: 0,
+                        template: 'simple',
+                        handleError: (err) => {
+                            this.cam.liveError = '播放错误: ' + (err?.msg || JSON.stringify(err));
+                        },
+                    });
+                    this.cam.liveReady = true;
+                } else {
+                    // Fallback: try native HLS
+                    const video = document.createElement('video');
+                    video.controls = true;
+                    video.autoplay = true;
+                    video.style.width = '100%';
+                    video.style.height = '100%';
+                    video.style.background = '#000';
+                    video.src = cfg.hls_url;
+                    container.appendChild(video);
+                    this.cam._player = video;
+                    this.cam.liveReady = true;
+                }
+            } catch(e) {
+                this.cam.liveError = '加载失败: ' + e.message;
+            }
+            this.cam.liveLoading = false;
+        },
+
+        stopLiveStream() {
+            if (this.cam._player) {
+                try {
+                    if (typeof this.cam._player.stop === 'function') {
+                        this.cam._player.stop();
+                    } else if (typeof this.cam._player.pause === 'function') {
+                        this.cam._player.pause();
+                        this.cam._player.src = '';
+                    }
+                    this.cam._player = null;
+                } catch(e) {}
+            }
+            const container = document.getElementById('live-video-container');
+            if (container) container.innerHTML = '';
+            this.cam.liveReady = false;
+            this.cam.liveLoading = false;
+            this.cam.liveError = '';
         },
 
         renderCharts(d) {

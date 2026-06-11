@@ -7,8 +7,13 @@ IoT-MQTT Web Dashboard — FastAPI 后端 v2
 import asyncio
 import json
 import re
-import urllib.request
+import sys
 from pathlib import Path
+
+# Add project root to path for ys_bridge import
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+import urllib.request
 
 from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
@@ -255,6 +260,29 @@ async def camera_status():
         TOPIC_YS_CMD, {"action": "status"}, wait_topic=TOPIC_YS_SNAP
     )
     return result
+
+
+@app.get("/api/camera/stream")
+async def camera_stream():
+    """Return live streaming config for EZUIKit player."""
+    # Get Ezviz access token from the bridge
+    token = ""
+    err = ""
+    try:
+        from ys_bridge import EzvizAPI
+        ez = EzvizAPI()
+        token = ez.access_token  # use current token first
+        if not token:
+            ez.refresh_token()
+            token = ez.access_token
+    except Exception as e:
+        err = str(e)
+    return {
+        "accessToken": token,
+        "error": err,
+        "ezopen_url": "ezopen://open.ys7.com/BG9434316/1.hd.live",
+        "hls_url": "https://open.ys7.com/v3/openlive/BG9434316_1_1.m3u8?expire=1781779447&id=985253113696878593&t=5311039850c99d11d7a233c6ae2d8e403fe7ae12feb01e4e2bb18224b6ab5f19&ev=101&supportH265=1",
+    }
 
 
 @app.get("/api/camera/latest")
