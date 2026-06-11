@@ -3,3 +3,7 @@ __pycache__/
 .*.swp
 *.log
 sensor_history.jsonl
+*.db
+ys.zip
+architecture.html
+_*

@@ -21,6 +21,7 @@ from config import (
     MQTT_HOST, MQTT_PORT,
     TOPIC_MI_COMMAND, TOPIC_HUAWEI_COMMAND, TOPIC_ALL_COMMAND,
     TOPIC_MI_STATUS, TOPIC_HUAWEI_STATUS, TOPIC_HUAWEI_SENSOR,
+    TOPIC_YS_COMMAND, TOPIC_YS_SNAPSHOT, TOPIC_YS_DETECTION,
 )
 
 # ── 自然语言 → 结构化命令 (简易版) ──
@@ -42,8 +43,20 @@ def parse_natural(text: str) -> dict:
     if is_sensor:
         payload["action"] = "read_sensor"
 
-    # 状态（传感器指令不设默认 state）
-    if not is_sensor:
+    # 摄像头指令
+    is_camera = bool(re.search(r"萤石|拍照|截图|摄像头|抓拍|ys|detect|capture|监控", text, re.I))
+    if is_camera:
+        if re.search(r"检测|detect|人", text, re.I):
+            payload["action"] = "detect"
+        elif re.search(r"连拍|多张|连续", text, re.I):
+            m = re.search(r"(\d+)张", text)
+            payload["action"] = "capture_n"
+            payload["count"] = int(m.group(1)) if m else 5
+        else:
+            payload["action"] = "capture"
+
+    # 状态（传感器/摄像头指令不设默认 state）
+    if not is_sensor and not is_camera:
         if re.search(r"开|亮|打开|开启|on", text, re.I):
             payload["state"] = "ON"
         elif re.search(r"关|灭|关闭|off", text, re.I):
@@ -75,11 +88,17 @@ def parse_natural(text: str) -> dict:
 
 def extract_target(text: str) -> str:
     """Extract device target from natural language text."""
-    # Priority matches (longer patterns first to avoid partial matches)
     targets = [
         ("米家", "米家"),
         ("小米", "米家"),
         ("yeelight", "米家"),
+        ("萤石", "萤石"),
+        ("ys", "萤石"),
+        ("摄像头", "萤石"),
+        ("拍照", "萤石"),
+        ("截图", "萤石"),
+        ("监控", "萤石"),
+        ("台灯", "米家"),
         ("华为", "华为"),
         ("huawei", "华为"),
         ("智慧生活", "华为"),
@@ -120,6 +139,12 @@ def main():
         topics = [TOPIC_HUAWEI_COMMAND]
         label = "华为智慧生活灯"
         wait_topic = TOPIC_HUAWEI_SENSOR if payload.get("action") == "read_sensor" else TOPIC_HUAWEI_STATUS
+    elif target_lower in ("萤石", "ys", "摄像头", "拍照", "截图", "监控"):
+        topics = [TOPIC_YS_COMMAND]
+        label = "萤石摄像头"
+        # camera actions: capture → wait for snapshot, detect → wait for detection
+        action = payload.get("action", "")
+        wait_topic = TOPIC_YS_DETECTION if action == "detect" else TOPIC_YS_SNAPSHOT
     else:
         topics = [TOPIC_ALL_COMMAND, TOPIC_MI_COMMAND, TOPIC_HUAWEI_COMMAND]
         label = "全部设备"

@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>统一智能家居管理平台</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com">
+    tailwind.config = {
+        darkMode: 'class'
+    }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        :root {
+            --bg-page: #08090a;
+            --bg-panel: #0f1011;
+            --bg-card: rgba(255,255,255,0.02);
+            --border: rgba(255,255,255,0.08);
+            --border-subtle: rgba(255,255,255,0.05);
+            --text-primary: #f7f8f8;
+            --text-secondary: #d0d6e0;
+            --text-muted: #8a8f98;
+            --text-dim: #62666d;
+            --slider-thumb-bg: #0f1011;
+            --btn-ghost-bg: rgba(255,255,255,0.02);
+            --btn-ghost-border: rgba(255,255,255,0.08);
+            --btn-ghost-text: #d0d6e0;
+            --btn-ghost-hover-bg: rgba(255,255,255,0.05);
+            --btn-ghost-hover-text: #f7f8f8;
+            --badge-off-bg: rgba(255,255,255,0.05);
+            --badge-off-text: #8a8f98;
+            --input-bg: rgba(255,255,255,0.02);
+            --input-border: rgba(255,255,255,0.08);
+            --input-text: #d0d6e0;
+            --input-placeholder: #62666d;
+            --chart-grid: rgba(255,255,255,0.03);
+            --chart-tick: #62666d;
+            --metric-bg: rgba(255,255,255,0.03);
+            --metric-border: rgba(255,255,255,0.05);
+            --code-bg: rgba(255,255,255,0.03);
+            --code-border: rgba(255,255,255,0.05);
+        }
+        .light {
+            --bg-page: #f7f8f8;
+            --bg-panel: #ffffff;
+            --bg-card: #ffffff;
+            --border: #d0d6e0;
+            --border-subtle: #e6e6e6;
+            --text-primary: #171717;
+            --text-secondary: #404040;
+            --text-muted: #737373;
+            --text-dim: #a3a3a3;
+            --slider-thumb-bg: #ffffff;
+            --btn-ghost-bg: #ffffff;
+            --btn-ghost-border: #d0d6e0;
+            --btn-ghost-text: #404040;
+            --btn-ghost-hover-bg: #f3f4f5;
+            --btn-ghost-hover-text: #171717;
+            --badge-off-bg: #f3f4f5;
+            --badge-off-text: #737373;
+            --input-bg: #ffffff;
+            --input-border: #d0d6e0;
+            --input-text: #171717;
+            --input-placeholder: #a3a3a3;
+            --chart-grid: rgba(0,0,0,0.06);
+            --chart-tick: #a3a3a3;
+            --metric-bg: #f3f4f5;
+            --metric-border: #e6e6e6;
+            --code-bg: #f3f4f5;
+            --code-border: #e6e6e6;
+        }
+        * { font-family: 'Inter', system-ui, -apple-system, sans-serif; transition: background 0.2s, color 0.2s, border-color 0.2s; }
+        body { background: var(--bg-page); color: var(--text-secondary); }
+        .panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        @media (min-width: 640px) { .card { padding: 20px; } }
+        .card-accent { border-color: rgba(94,106,210,0.3); }
+        .card-accent:hover { border-color: rgba(94,106,210,0.6); }
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle); }
+        .btn { @apply px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-40; }
+        .btn:focus { --tw-ring-offset-color: var(--bg-panel); }
+        .btn-primary { @apply btn text-white; background: #5e6ad2; }
+        .btn-primary:hover { background: #7170ff; }
+        .btn-success { @apply btn text-white; background: #10b981; }
+        .btn-success:hover { background: #27a644; }
+        .btn-danger { @apply btn text-white; background: #ef4444; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-ghost { @apply btn; background: var(--btn-ghost-bg); border: 1px solid var(--btn-ghost-border); color: var(--btn-ghost-text); }
+        .btn-ghost:hover { background: var(--btn-ghost-hover-bg); color: var(--btn-ghost-hover-text); }
+        .badge { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium; }
+        .badge-on { @apply badge; background: rgba(16,185,129,0.15); color: #10b981; }
+        .badge-off { @apply badge; background: var(--badge-off-bg); color: var(--badge-off-text); }
+        .badge-unknown { @apply badge; background: rgba(251,191,36,0.15); color: #fbbf24; }
+        .slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; outline: none; cursor: pointer; background: var(--border); }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #5e6ad2; border: 2px solid var(--slider-thumb-bg); box-shadow: 0 0 0 1px rgba(0,0,0,0.1); cursor: pointer; }
+        .slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #5e6ad2; border: 2px solid var(--slider-thumb-bg); cursor: pointer; }
+        .input { @apply w-full px-4 py-3 rounded-lg text-sm; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--input-text); outline: none; }
+        .input:focus { border-color: #5e6ad2; }
+        .input::placeholder { color: var(--input-placeholder); }
+        select.input { cursor: pointer; }
+        select.input option { background: var(--bg-panel); color: var(--text-secondary); }
+        .glow { box-shadow: 0 0 20px rgba(94,106,210,0.08); }
+        .label-muted { color: var(--text-muted); font-size: 11px; font-weight: 500; letter-spacing: 0.02em; }
+        .value-lg { color: var(--text-primary); font-size: 20px; font-weight: 500; }
+        .section-tag { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 500; letter-spacing: 0.03em; text-transform: uppercase; }
+        .tag-ha { background: rgba(94,106,210,0.15); color: #828fff; }
+        .tag-hw { background: rgba(16,185,129,0.15); color: #10b981; }
+        .theme-btn { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: var(--btn-ghost-bg); border: 1px solid var(--btn-ghost-border); color: var(--btn-ghost-text); transition: all 0.2s; }
+        .theme-btn:hover { background: var(--btn-ghost-hover-bg); color: var(--btn-ghost-hover-text); }
+        .text-primary { color: var(--text-primary); }
+        .text-dim { color: var(--text-dim); }
+    </style>
+</head>
+<body x-data="dash()" x-init="init()" :class="theme === 'light' ? 'light' : ''">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-50" :style="'background:'+(theme==='light'?'#ffffff':'#0f1011')+';border-bottom:1px solid var(--border-subtle);'">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 h-12 sm:h-14 flex items-center justify-between">
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div style="width:24px;height:24px;min-width:24px;background:#5e6ad2;border-radius:5px;display:flex;align-items:center;justify-content:center;">
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <span class="text-primary truncate" style="font-weight:500;font-size:13px;letter-spacing:-0.02em;">统一智能家居管理平台</span>
+            </div>
+            <div class="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                <div class="flex items-center gap-2 sm:gap-4 text-[10px] sm:text-xs" style="color:var(--text-dim);">
+                    <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full" :class="s.broker?'bg-emerald-500':'bg-red-500'"></span><span class="inline sm:inline text-[9px] sm:text-xs">Broker</span></span>
+                    <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full" :class="s.ha_bridge?'bg-emerald-500':'bg-red-500'"></span><span class="inline sm:inline text-[9px] sm:text-xs">HA</span></span>
+                    <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full" :class="s.adb_bridge?'bg-emerald-500':'bg-red-500'"></span><span class="inline sm:inline text-[9px] sm:text-xs">ADB</span></span>
+                    <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full" :class="s.camera_bridge?'bg-emerald-500':'bg-red-500'"></span><span class="inline sm:inline text-[9px] sm:text-xs">Cam</span></span>
+                    <span class="hidden sm:inline" x-text="lastUpdate"></span>
+                </div>
+                <button @click="toggleTheme" class="theme-btn" style="width:30px;height:30px;min-width:30px;" :title="theme==='dark'?'切换浅色模式':'切换深色模式'">
+                    <template x-if="theme === 'dark'">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    </template>
+                    <template x-if="theme === 'light'">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                    </template>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+
+        <!-- ════ TWO-PANEL GRID ════ -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+
+            <!-- ─── PANEL 1: Home Assistant ─── -->
+            <div>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="section-tag tag-ha">Home Assistant</span>
+                </div>
+
+                <div class="card card-accent glow">
+                    <div class="card-header">
+                        <span style="color:var(--text-primary);font-weight:500;font-size:15px;">💡 米家台灯 1S 增强版</span>
+                        <span x-text="ha.state" :class="{'badge-on':ha.state=='on','badge-off':ha.state=='off','badge-unknown':!ha.state||ha.state=='unavailable'}"></span>
+                    </div>
+
+                    <div class="space-y-5">
+                        <!-- ON/OFF -->
+                        <div class="flex gap-2">
+                            <button @click="haCmd('turn_on',128)" class="btn-success flex-1">开灯</button>
+                            <button @click="haCmd('turn_off')" class="btn-danger flex-1">关灯</button>
+                        </div>
+
+                        <!-- Brightness slider -->
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <span class="label-muted">亮度</span>
+                                <span style="color:var(--text-primary);font-size:13px;font-weight:500;" x-text="haBrightness"></span>
+                            </div>
+                            <div class="relative">
+                                <input type="range" min="0" max="255" x-model="haBrightness"
+                                       @input="onBrightnessInput"
+                                       class="slider" :style="'background:linear-gradient(to right, #5e6ad2 '+(haBrightness/255*100)+'%, rgba(255,255,255,0.08) '+(haBrightness/255*100)+'%);'">
+                            </div>
+                            <div class="flex justify-between mt-1">
+                                <span style="color:var(--text-muted);font-size:10px;">0 关</span>
+                                <span style="color:var(--text-muted);font-size:10px;">128 中</span>
+                                <span style="color:var(--text-muted);font-size:10px;">255 最亮</span>
+                            </div>
+                        </div>
+
+                        <!-- Color Temp slider -->
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <span class="label-muted">色温</span>
+                                <span style="color:var(--text-primary);font-size:13px;font-weight:500;" x-text="ha.color_temp ? ha.color_temp+'K' : '—'"></span>
+                            </div>
+                            <input type="range" min="2600" max="5100" step="100"
+                                   :value="ha.color_temp || 4000"
+                                   @input.debounce.500ms="setColorTemp($event.target.value)"
+                                   class="slider" style="background:linear-gradient(to right, #f59e0b, #6366f1, #3b82f6);">
+                            <div class="flex justify-between mt-1">
+                                <span style="color:#f59e0b;font-size:10px;">🟠 暖光</span>
+                                <span style="color:var(--text-muted);font-size:10px;">4000K</span>
+                                <span style="color:#3b82f6;font-size:10px;">🔵 冷光</span>
+                            </div>
+                        </div>
+
+                        <!-- Effect -->
+                        <div>
+                            <span class="label-muted block mb-1.5">情景模式</span>
+                            <select @change="setEffect($event.target.value)" class="input py-2">
+                                <option value="" style="background:#191a1b;">当前：<span x-text="ha.effect || '无'"></span></option>
+                                <option value="阅读模式" style="background:#191a1b;">📖 阅读</option>
+                                <option value="电脑模式" style="background:#191a1b;">💻 电脑</option>
+                                <option value="温馨" style="background:#191a1b;">🕯️ 温馨</option>
+                                <option value="办公模式" style="background:#191a1b;">📋 办公</option>
+                                <option value="休闲模式" style="background:#191a1b;">🛋️ 休闲</option>
+                                <option value="娱乐模式" style="background:#191a1b;">🎬 娱乐</option>
+                                <option value="自由调节模式" style="background:#191a1b;">🎛️ 自由调节</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── PANEL 2: 华为智慧生活 ─── -->
+            <div>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="section-tag tag-hw">华为智慧生活</span>
+                </div>
+
+                <!-- Huawei Light -->
+                <div class="card card-accent glow mb-4">
+                    <div class="card-header">
+                        <span style="color:var(--text-primary);font-weight:500;font-size:15px;">📱 达伦智能台灯 5i</span>
+                        <span x-text="hw.state" :class="hw.state=='ON'?'badge-on':hw.state?'badge-off':'badge-unknown'"></span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="flex gap-2">
+                            <button @click="ctrlHw('ON')" class="btn-success flex-1">开</button>
+                            <button @click="ctrlHw('OFF')" class="btn-danger flex-1">关</button>
+                            <button @click="ctrlHw('TOGGLE')" class="btn-ghost flex-1">切换</button>
+                        </div>
+                        <div x-show="hw.loading" style="color:#7170ff;font-size:12px;" class="animate-pulse">⏳ ADB 执行中 (~15秒)...</div>
+                        <div x-show="hw.result" class="text-xs" style="background:var(--code-bg);border:1px solid var(--code-border);border-radius:6px;padding:8px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;word-break:break-all;" x-text="hw.result"></div>
+                    </div>
+                </div>
+
+                <!-- Air Quality Sensor -->
+                <div class="card card-accent glow">
+                    <div class="card-header">
+                        <span style="color:var(--text-primary);font-weight:500;font-size:15px;">🌬️ 豪恩空气质量检测仪</span>
+                        <button @click="readSensor()" :disabled="sen.loading" class="btn-ghost text-xs py-1.5 px-3">
+                            <span x-text="sen.loading ? '读取中...' : '读取'"></span>
+                        </button>
+                    </div>
+
+                    <!-- 4 Metrics -->
+                    <div class="grid grid-cols-4 gap-3 mb-5">
+                        <template x-for="m in metrics" :key="m.key">
+                            <div style="background:var(--metric-bg);border:1px solid var(--metric-border);border-radius:8px;padding:12px 8px;text-align:center;">
+                                <div class="label-muted mb-1" x-text="m.label"></div>
+                                <div style="color:var(--text-primary);font-size:22px;font-weight:500;" :style="m.key==='co2'?co2Style:'color:var(--text-primary)'" x-text="sen[m.key] ?? '—'"></div>
+                                <div style="color:var(--text-dim);font-size:10px;" x-text="m.unit"></div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div x-show="sen.ts" style="color:var(--text-dim);font-size:10px;margin-bottom:12px;text-align:right;">最后更新：<span x-text="sen.ts"></span></div>
+
+                    <div x-show="sen.loading" style="color:#7170ff;font-size:12px;" class="animate-pulse mb-4">⏳ ADB 读取中 (~22秒)...</div>
+                    <div x-show="sen.error" style="color:#ef4444;font-size:12px;margin-bottom:12px;" x-text="sen.error"></div>
+
+                    <!-- 4 Charts -->
+                    <div class="space-y-5">
+                        <template x-for="(cfg,i) in chartConfigs" :key="cfg.key">
+                            <div>
+                                <div class="flex justify-between items-center mb-1.5">
+                                    <div class="flex items-center gap-2">
+                                        <span style="width:8px;height:8px;border-radius:2px;display:inline-block;" :style="'background:'+cfg.color"></span>
+                                        <span style="color:var(--text-muted);font-size:11px;font-weight:500;" x-text="cfg.label"></span>
+                                    </div>
+                                    <span style="color:var(--text-dim);font-size:11px;" x-text="chartLatest(cfg.key)"></span>
+                                </div>
+                                <div style="height:65px;position:relative;">
+                                    <canvas :id="cfg.key" style="width:100%;height:100%;"></canvas>
+                                </div>
+                            </div>
+                        </template>
+                        <div x-show="!hasChartData" style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">暂无数据，点击"读取"获取</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════ Camera Panel ════ -->
+        <div class="panel p-5 mb-6 sm:mb-8">
+            <div class="flex items-center justify-between mb-4" style="padding-bottom:12px;border-bottom:1px solid var(--border-subtle);">
+                <div class="flex items-center gap-3">
+                    <span class="section-tag" style="background:rgba(59,130,246,0.15);color:#3b82f6;">萤石摄像头</span>
+                    <span x-text="'C6c (' + cam.device_serial + ')'" style="color:var(--text-dim);font-size:11px;"></span>
+                    <span :class="cam.online ? 'badge-on' : 'badge-off'" x-text="cam.online ? '在线' : '离线'" style="font-size:10px;"></span>
+                </div>
+                <div class="flex gap-2">
+                    <button @click="camCapture()" :disabled="cam.loading" class="btn-primary text-xs py-1.5 px-3">
+                        <span x-text="cam.loading ? '执行中...' : '📷 拍照'"></span>
+                    </button>
+                    <button @click="camDetect()" :disabled="cam.loading" class="btn-ghost text-xs py-1.5 px-3">
+                        🔍 拍照+检测
+                    </button>
+                </div>
+            </div>
+
+            <!-- Image display area -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                    <div class="label-muted mb-1.5">最新抓拍</div>
+                    <template x-if="cam.snapshot_url">
+                        <a :href="cam.snapshot_url" target="_blank">
+                            <img :src="cam.snapshot_url" class="w-full rounded-lg" style="border:1px solid var(--border);max-height:320px;object-fit:cover;">
+                        </a>
+                    </template>
+                    <template x-if="!cam.snapshot_url">
+                        <div class="flex items-center justify-center rounded-lg" style="background:var(--metric-bg);border:1px solid var(--metric-border);height:200px;color:var(--text-dim);font-size:13px;">
+                            暂无截图，点击"拍照"
+                        </div>
+                    </template>
+                    <div x-show="cam.snap_ts" style="color:var(--text-dim);font-size:10px;margin-top:4px;" x-text="cam.snap_ts"></div>
+                </div>
+                <div>
+                    <div class="label-muted mb-1.5">检测结果</div>
+                    <template x-if="cam.detect_url">
+                        <a :href="cam.detect_url" target="_blank">
+                            <img :src="cam.detect_url" class="w-full rounded-lg" style="border:1px solid var(--border);max-height:320px;object-fit:cover;">
+                        </a>
+                    </template>
+                    <template x-if="!cam.detect_url && cam.snapshot_url">
+                        <div class="flex items-center justify-center rounded-lg" style="background:var(--metric-bg);border:1px solid var(--metric-border);height:200px;color:var(--text-dim);font-size:13px;">
+                            点击"拍照+检测"
+                        </div>
+                    </template>
+                    <template x-if="!cam.detect_url && !cam.snapshot_url">
+                        <div class="flex items-center justify-center rounded-lg" style="background:var(--metric-bg);border:1px solid var(--metric-border);height:200px;color:var(--text-dim);font-size:13px;">
+                            暂无检测结果
+                        </div>
+                    </template>
+
+                    <!-- Detection summary -->
+                    <div x-show="cam.person_count !== null" class="mt-2 flex gap-3">
+                        <span class="text-xs" style="color:var(--text-muted);">
+                            👤 检测到 <strong style="color:var(--text-primary);" x-text="cam.person_count"></strong> 人
+                        </span>
+                        <span x-show="cam.total_detections !== null" class="text-xs" style="color:var(--text-dim);">
+                            总共 <span x-text="cam.total_detections"></span> 个目标
+                        </span>
+                    </div>
+                    <div x-show="cam.detect_error" class="mt-2 text-xs" style="color:#ef4444;" x-text="cam.detect_error"></div>
+                </div>
+            </div>
+
+            <div x-show="cam.loading" class="mt-3" style="color:#3b82f6;font-size:12px;" class="animate-pulse">⏳ 萤石API执行中...</div>
+            <div x-show="cam.error" class="mt-3 text-xs" style="color:#ef4444;" x-text="cam.error"></div>
+        </div>
+
+        <!-- ════ Command Console ════ -->
+        <div class="panel p-5">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border-subtle);">
+                <span style="color:var(--text-primary);font-weight:500;font-size:15px;">💬 命令控制台</span>
+            </div>
+
+            <form @submit.prevent="runCmd" class="flex gap-3 mb-4">
+                <input type="text" x-model="cmdText" placeholder="开小米的灯 / 亮度80 / 读空气质量 / 开华为的灯" class="input flex-1" style="background:rgba(255,255,255,0.03);">
+                <button type="submit" :disabled="!cmdText.trim()" class="btn-primary">发送</button>
+            </form>
+
+            <div x-show="cmdResult" class="mb-4" style="background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);max-height:200px;overflow:auto;">
+                <pre x-text="JSON.stringify(cmdResult,null,2)"></pre>
+            </div>
+
+            <div class="flex flex-wrap gap-1.5">
+                <button @click="quickCmd('开小米的灯')" class="btn-ghost text-xs py-1.5 px-3">开小米灯</button>
+                <button @click="quickCmd('关小米的灯')" class="btn-ghost text-xs py-1.5 px-3">关小米灯</button>
+                <button @click="quickCmd('亮度80')" class="btn-ghost text-xs py-1.5 px-3">亮度80</button>
+                <button @click="quickCmd('阅读模式')" class="btn-ghost text-xs py-1.5 px-3">阅读模式</button>
+                <button @click="quickCmd('开华为的灯')" class="btn-ghost text-xs py-1.5 px-3">开华为灯</button>
+                <button @click="quickCmd('关华为的灯')" class="btn-ghost text-xs py-1.5 px-3">关华为灯</button>
+                <button @click="quickCmd('读空气质量')" class="btn-ghost text-xs py-1.5 px-3">读空气质量</button>
+                <button @click="quickCmd('萤石拍照')" class="btn-ghost text-xs py-1.5 px-3">萤石拍照</button>
+                <button @click="quickCmd('萤石检测' )" class="btn-ghost text-xs py-1.5 px-3">萤石检测</button>
+                <button @click="quickCmd('开灯')" class="btn-ghost text-xs py-1.5 px-3">全部开</button>
+                <button @click="quickCmd('关灯')" class="btn-ghost text-xs py-1.5 px-3">全部关</button>
+            </div>
+        </div>
+    </main>
+
+<script>
+function dash() {
+    return {
+        // ── States ──
+        ha: {state:'—', brightness:null, color_temp:null, effect:null},
+        haBrightness: 0,           // local slider value
+        haBrightnessTimer: null,   // debounce timer for brightness commit
+
+        hw: {state:null, loading:false, result:''},
+
+        sen: {co2:'—', temp:'—', hum:'—', fmd:'—', ts:'', loading:false, error:''},
+
+        cam: {loading:false, online:false, device_serial:'BG9434316', snapshot_url:null, detect_url:null, person_count:null, total_detections:null, snap_ts:'', detect_error:'', error:''},
+
+        s: {broker:false, ha_bridge:false, adb_bridge:false, sensor_count:0},
+        theme: localStorage.getItem('iot-theme') || 'dark',
+        lastUpdate: '—',
+
+        cmdText: '',
+        cmdResult: null,
+
+        charts: {},
+        _chartFp: null,
+        chartConfigs: [
+            {key:'chartCo2',  label:'CO₂ (ppm)',       color:'#3b82f6', dataKey:'co2'},
+            {key:'chartTemp', label:'温度 (℃)',        color:'#ef4444', dataKey:'temperature'},
+            {key:'chartHum',  label:'湿度 (%)',         color:'#06b6d4', dataKey:'humidity'},
+            {key:'chartFmd',  label:'甲醛 (mg/m³)',    color:'#8b5cf6', dataKey:'formaldehyde'},
+        ],
+
+        // Metrics for the 4 boxes
+        metrics: [
+            {key:'co2', label:'CO₂', unit:'ppm'},
+            {key:'temp', label:'温度', unit:'℃'},
+            {key:'hum', label:'湿度', unit:'%'},
+            {key:'fmd', label:'甲醛', unit:'mg/m³'},
+        ],
+
+        hasChartData: false,
+
+        // ── Init ──
+        async init() {
+            await this.refreshAll();
+            setInterval(() => { this.refreshHA(); this.refreshStatus(); }, 10000);
+            setInterval(() => this.loadChartData(), 60000);
+            setInterval(() => this.loadCameraLatest(), 30000);
+        },
+
+        async refreshAll() {
+            await Promise.all([this.refreshHA(), this.refreshStatus(), this.loadLatestSensor(), this.loadChartData(), this.loadCameraLatest()]);
+            this.lastUpdate = new Date().toLocaleTimeString();
+        },
+
+        async refreshHA() {
+            try { const r=await fetch('/api/ha/state'); const d=await r.json();
+                if (d.state) { this.ha = d; this.haBrightness = d.brightness ?? 0; }
+            } catch(e) {}
+        },
+
+        async refreshStatus() {
+            try { const r=await fetch('/api/status'); this.s=await r.json(); } catch(e) {}
+        },
+
+        toggleTheme() {
+            this.theme = this.theme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('iot-theme', this.theme);
+        },
+
+        // ── HA Direct Control (no MQTT) ──
+        async haCmd(action, brightness) {
+            let url = `/api/ha/command?action=${action}`;
+            if (brightness !== undefined) url += `&brightness=${brightness}`;
+            try { await fetch(url); } catch(e) {}
+            setTimeout(() => this.refreshHA(), 800);
+        },
+
+        // Brightness input handler
+        onBrightnessInput() {
+            if (this.haBrightnessTimer) clearTimeout(this.haBrightnessTimer);
+            this.haBrightnessTimer = setTimeout(() => {
+                const v = parseInt(this.haBrightness);
+                if (v === 0) { this.haCmd('turn_off'); }
+                else { this.haCmd('turn_on', v); }
+            }, 400);
+        },
+
+        async setColorTemp(val) {
+            try { await fetch(`/api/ha/command?action=turn_on&color_temp=${parseInt(val)}&brightness=${this.ha.brightness||128}`); } catch(e) {}
+            setTimeout(() => this.refreshHA(), 800);
+        },
+
+        async setEffect(val) {
+            if (!val) return;
+            try { await fetch(`/api/ha/command?action=turn_on&effect=${encodeURIComponent(val)}&brightness=${this.ha.brightness||128}`); } catch(e) {}
+            setTimeout(() => this.refreshHA(), 800);
+        },
+
+        // ── Huawei Light ──
+        async ctrlHw(state) {
+            this.hw.loading = true; this.hw.result = '';
+            try {
+                const r = await fetch(`/api/command/raw?topic=home/light/huawei/command&wait=home/light/huawei/status&payload=${encodeURIComponent(JSON.stringify({state}))}`);
+                const d = await r.json();
+                this.hw.state = d.state || 'UNKNOWN';
+                this.hw.result = JSON.stringify(d);
+            } catch(e) { this.hw.result = 'Error: '+e; }
+            this.hw.loading = false;
+        },
+
+        // ── Sensor ──
+        get co2Style() {
+            const v = parseFloat(this.sen.co2);
+            if (isNaN(v)) return 'color:#62666d';
+            if (v > 1000) return 'color:#ef4444';
+            if (v > 800) return 'color:#f59e0b';
+            return 'color:#10b981';
+        },
+
+        async readSensor() {
+            this.sen.loading = true; this.sen.error = '';
+            try {
+                const r = await fetch('/api/sensor/read');
+                const d = await r.json();
+                if (d.error) { this.sen.error = d.error; }
+                else {
+                    this.sen.co2 = d.co2_value?.toFixed(0) ?? '—';
+                    this.sen.temp = d.温度_value?.toFixed(1) ?? '—';
+                    this.sen.hum = d.湿度_value?.toFixed(1) ?? '—';
+                    this.sen.fmd = d.甲醛?.split(' ')[0] ?? '—';
+                    this.sen.ts = new Date().toLocaleTimeString() + ' (刚刚)';
+                    await this.loadChartData();
+                }
+            } catch(e) { this.sen.error = 'Error: '+e; }
+            this.sen.loading = false;
+        },
+
+        async loadLatestSensor() {
+            try {
+                const r = await fetch('/api/sensor/latest');
+                const d = await r.json();
+                if (d && d.co2 != null) {
+                    this.sen.co2 = d.co2?.toFixed(0) ?? '—';
+                    this.sen.temp = d.temperature?.toFixed(1) ?? '—';
+                    this.sen.hum = d.humidity?.toFixed(1) ?? '—';
+                    this.sen.fmd = d.formaldehyde?.toFixed(3) ?? '—';
+                    this.sen.ts = d.ts ? d.ts.slice(11,16) + ' (' + d.ts.slice(0,10) + ')' : '';
+                }
+            } catch(e) {}
+        },
+
+        async loadChartData() {
+            try {
+                const r = await fetch('/api/sensor/history');
+                const d = await r.json();
+                this.renderCharts(d);
+            } catch(e) {}
+        },
+
+        chartLatest(key) {
+            // map chart key to latest sensor value
+            const map = {chartCo2:this.sen.co2, chartTemp:this.sen.temp, chartHum:this.sen.hum, chartFmd:this.sen.fmd};
+            return map[key] || '';
+        },
+
+        // ── Camera ──
+        async loadCameraLatest() {
+            try {
+                const r = await fetch('/api/camera/latest');
+                const d = await r.json();
+                if (d.url) {
+                    this.cam.snapshot_url = d.url;
+                    this.cam.detect_url = d.detected_url;
+                    this.cam.snap_ts = d.timestamp ? new Date(d.timestamp*1000).toLocaleString() : '';
+                }
+            } catch(e) {}
+        },
+
+        async camCapture() {
+            this.cam.loading = true; this.cam.error = ''; this.cam.detect_error = '';
+            try {
+                const r = await fetch('/api/camera/capture');
+                const d = await r.json();
+                if (d.filename) {
+                    this.cam.snapshot_url = '/ys/' + d.filename;
+                    this.cam.snap_ts = new Date().toLocaleString() + ' (刚刚)';
+                }
+                this.cam.person_count = null;
+                this.cam.total_detections = null;
+                this.cam.detect_url = null;
+            } catch(e) { this.cam.error = 'Error: '+e; }
+            this.cam.loading = false;
+        },
+
+        async camDetect() {
+            this.cam.loading = true; this.cam.error = ''; this.cam.detect_error = '';
+            try {
+                const r = await fetch('/api/camera/detect');
+                const d = await r.json();
+                if (d.filename) {
+                    this.cam.snapshot_url = '/ys/' + d.filename;
+                    this.cam.snap_ts = new Date().toLocaleString() + ' (刚刚)';
+                }
+                if (d.detection) {
+                    if (d.detection.error) {
+                        this.cam.detect_error = d.detection.error;
+                    } else {
+                        this.cam.person_count = d.detection.person_count;
+                        this.cam.total_detections = d.detection.total_detections;
+                        if (d.detection.output_path) {
+                            const fname = d.detection.output_path.split('/').pop();
+                            this.cam.detect_url = '/ys/' + fname;
+                        }
+                    }
+                }
+            } catch(e) { this.cam.error = 'Error: '+e; }
+            this.cam.loading = false;
+        },
+
+        renderCharts(d) {
+            if (!d || !d.labels || d.labels.length === 0) { this.hasChartData = false; return; }
+            this.hasChartData = true;
+            // Track data fingerprint to avoid unnecessary redraws
+            const fp = JSON.stringify({l:d.labels.length, c:d.co2, t:d.temperature, h:d.humidity, f:d.formaldehyde});
+            if (this._chartFp === fp) return;
+            this._chartFp = fp;
+            this.chartConfigs.forEach((cfg) => {
+                const canvas = document.getElementById(cfg.key);
+                if (!canvas) return;
+                try {
+                    if (this.charts[cfg.key]) { this.charts[cfg.key].destroy(); }
+                } catch(e) { /* ignore */ }
+                const raw = d[cfg.dataKey] || [];
+                const valid = raw.filter(v => v !== null && v !== undefined);
+                if (valid.length === 0) return;
+                try {
+                    this.charts[cfg.key] = new Chart(canvas, {
+                    type: 'line',
+                    data: {
+                        labels: d.labels.slice(-valid.length),
+                        datasets: [{
+                            data: valid,
+                            borderColor: cfg.color,
+                            backgroundColor: cfg.color + '18',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 1.5,
+                            borderWidth: 1.5,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 300 },
+                        plugins: { legend: { display: false }, tooltip: { mode:'index', intersect:false, backgroundColor:'#191a1b', titleColor:'#f7f8f8', bodyColor:'#d0d6e0', borderColor:'rgba(255,255,255,0.08)', borderWidth:1 } },
+                        scales: {
+                            y: { beginAtZero: false, grid: { color:'rgba(255,255,255,0.03)' }, ticks: { color:'#62666d', font:{size:9}, maxTicksLimit:5 } },
+                            x: { grid: { display:false }, ticks: { color:'#62666d', font:{size:8}, maxTicksLimit:6 } }
+                        }
+                    }
+                });
+                } catch(e) { console.warn('Chart render error:', cfg.key, e); }
+                // Force resize after creation to fill container
+                try { if (this.charts[cfg.key]) { this.charts[cfg.key].resize(); } } catch(e) {}
+            });
+        },
+
+        // ── Command Console ──
+        async runCmd() {
+            if (!this.cmdText.trim()) return;
+            this.cmdResult = null;
+            try {
+                const r = await fetch(`/api/command?q=${encodeURIComponent(this.cmdText)}`);
+                this.cmdResult = await r.json();
+                setTimeout(() => this.refreshAll(), 1500);
+            } catch(e) { this.cmdResult = {error:e.message}; }
+        },
+
+        quickCmd(text) {
+            this.cmdText = text;
+            this.runCmd();
+        },
+    };
+}
+</script>
+</body>
+</html>

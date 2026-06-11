@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 华为空气传感器定时采集脚本。
-读取传感器数据并发布到 home/sensor/huawei/status，
-同时保存到文件供历史查看。
+读取传感器数据并保存到 SQLite，同时发布到 MQTT。
 """
 
 import json
@@ -17,7 +16,10 @@ MQTT_PORT = 1883
 TOPIC_HUAWEI_COMMAND = "home/light/huawei/command"
 TOPIC_HUAWEI_SENSOR = "home/sensor/huawei/status"
 
-LOG_FILE = "/home/aidlux/iot-mqtt/sensor_history.jsonl"
+# Use SQLite instead of JSONL
+import sys
+sys.path.insert(0, "/home/aidlux/iot-mqtt/web")
+from sensor_db import save_reading
 
 sensor_result = None
 
@@ -33,34 +35,29 @@ def main():
     client.on_message = on_sensor_msg
     client.connect(MQTT_HOST, MQTT_PORT, 10)
     client.loop_start()
-
-    # Subscribe to sensor topic
     client.subscribe(TOPIC_HUAWEI_SENSOR, qos=0)
 
-    # Send read command
     cmd = json.dumps({"action": "read_sensor"})
     print(f"[poll] Sending: {cmd}")
     client.publish(TOPIC_HUAWEI_COMMAND, cmd)
 
-    # Wait for result (ADB takes ~20s)
     waited = 0
     while sensor_result is None and waited < 35:
         time.sleep(1)
         waited += 1
-        print(f"[poll] Waiting... {waited}s")
 
     client.loop_stop()
 
     if sensor_result:
-        # Append to history
-        entry = json.dumps({
-            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "data": json.loads(sensor_result),
-        })
-        with open(LOG_FILE, "a") as f:
-            f.write(entry + "\n")
-        print(f"[poll] Logged to {LOG_FILE}")
-        print(f"[poll] {sensor_result}")
+        try:
+            data = json.loads(sensor_result)
+            if "co2_value" in data:
+                save_reading(data, source="cron")
+                print(f"[poll] Saved to SQLite")
+            print(f"[poll] {sensor_result}")
+        except json.JSONDecodeError:
+            print(f"[poll] Parse error: {sensor_result}")
+            sys.exit(1)
     else:
         print("[poll] FAILED: No sensor data received within timeout")
         sys.exit(1)
